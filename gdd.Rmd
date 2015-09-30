@@ -1,0 +1,67 @@
+---
+title: "Weather Underground GDD"
+author: "Kate Davis"
+date: "09/29/2015"
+output: html_document
+---
+```{r setup}
+require(lubridate)
+```
+```{r monthly}
+wum=readRDS("wum.rds")
+ww=readRDS("ww.rds")
+```
+
+
+```{r prep-time}
+ww$dateval=as.Date(ww$Time)
+ww$timeeval = as.POSIXct(ww$Time)
+nn=nrow(ww)
+tl=diff(ww$timeeval)
+ww$timelag=c(0,tl)
+
+```
+
+```{r calc-gdd-hourly}
+require(data.table)
+# Degrees F growing range
+base.temp=50
+max.temp=90
+gdd=data.table(ww)
+gdd$gdd.temp=gdd$TemperatureF
+gdd=gdd[TemperatureF<base.temp,gdd.temp:=base.temp]
+gdd=gdd[TemperatureF>max.temp,gdd.temp:=max.temp]
+gdd$gddslice=with(gdd,(gdd.temp-base.temp))
+gddsummary=gdd[,list(gdd=sum(gddslice*timelag,na.rm=T),minutes=sum(timelag)),by=dateval]
+gddsummary$gdd=with(gddsummary,gdd/minutes)
+gddsummary$year=year(gddsummary$dateval)
+cumgdd<-function(xyear){
+gddyear=gddsummary[year==xyear,list(gdd,gdd_cum=cumsum(gdd)),by=list(year,dateval)]
+gddyear$gdd_cum=cumsum(gddyear$gdd)
+gddyear$julian=as.integer(gddyear$dateval-as.Date(sprintf("%d/01/01",xyear)))+1
+return(gddyear)
+}
+gddyear=rbind(cumgdd(2010),cumgdd(2011),cumgdd(2012),cumgdd(2013),cumgdd(2014),cumgdd(2015))
+gddyear$nodd=TRUE
+gddyear[gdd!=0,nodd:=FALSE]
+gddyear$month=as.factor(month(gddyear$dateval))
+#require(timeDate)
+#gddyear$julian=as.integer(timeDate::julian(timeDate(gddyear$dateval)))
+```
+
+```{r gdd-plot-daily}
+gg<-ggplot(data=gddyear[!gddyear$nodd & gddyear$gdd_cum>100,],aes(x=julian,y=gdd_cum,color=month))
+gg<-gg+geom_point()+facet_grid(year~. )
+print(gg)
+```
+
+
+```{r calc-gdd-daily}
+wum$gdd.low.temp=wum$TemperatureLowF
+wum[wum$gdd.low.temp<base.temp,"gdd.low.temp"]=base.temp
+wum$gdd.hi.temp=wum$TemperatureHighF
+wum[wum$gdd.hi.temp>max.temp,"gdd.hi.temp"]=max.temp
+wum[wum$gdd.hi.temp<base.temp,"gdd.hi.temp"]=base.temp
+wum$gdd=with(wum,(gdd.hi.temp+gdd.low.temp)/2-base.temp)
+```
+
