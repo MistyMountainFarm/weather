@@ -9,7 +9,7 @@ require(RCurl)
 require(lubridate)
 ```
 ```{r monthly}
-wmurl="http://api.wunderground.com/weatherstation/WXDailyHistory.asp?ID=KMEPARSO2&day=1&month=1&year=2009&dayend=29&monthend=9&yearend=2015&graphspan=custom&format=1"
+wmurl="http://api.wunderground.com/weatherstation/WXDailyHistory.asp?ID=KMEPARSO2&day=1&month=1&year=2009&dayend=29&monthend=11&yearend=2016&graphspan=custom&format=1"
 wum=read.csv(wmurl,stringsAsFactors = F,na.strings="<br>",blank.lines.skip = T,row.names=NULL)
 wum=wum[!is.na(wum$Date),]
 wum$Date=as.Date(wum$Date)
@@ -20,7 +20,9 @@ saveRDS(wum,"wum.rds")
 ```{r daily}
 fwdurl="http://api.wunderground.com/weatherstation/WXDailyHistory.asp?ID=KMEPARSO2&day=%d&month=%d&year=%d&graphspan=day&format=1"
 dvec=wum$Date #seq(as.Date("2009-05-15"), as.Date("2015-09-28"), by="days")
+rm(wum)
 wdurl=sprintf(fwdurl,day(dvec),month(dvec),year(dvec))
+rm(dvec)
 gweather<-function(wdurl){
   dd=read.csv(wdurl,stringsAsFactors = F,na.strings="<br>",blank.lines.skip = T,row.names=NULL)
   dd=dd[!is.na(dd$row.names),]
